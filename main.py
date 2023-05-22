@@ -21,7 +21,7 @@ def main():
 
     # Command line interface
     while True:
-        val = input("\n(1) View Transactions \n(2) Send Transaction\n(3) Get Balance\n(4) Look at Blocks\n(5) Mine Blocks\n(6) Get Public Key\n(7) Get Address\n")
+        val = input("\n(1) View Transactions \n(2) Send Transaction\n(3) Get Balance\n(4) Look at Blocks\n(5) Mine Blocks\n(6) Get Public Key\n(7) Get Address\n(8) Show wallet\n")
 
         if int(val) == 1:
             network.get_transactions()
@@ -40,6 +40,8 @@ def main():
             print(network.get_public_key().hex())
         elif int(val) == 7:
             network.get_address()
+        elif int(val) == 8:
+            network.show_wallet()
         
 if __name__ == '__main__':
     main()

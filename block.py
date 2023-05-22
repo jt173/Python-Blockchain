@@ -3,19 +3,25 @@ from sha256 import sha256
 
 MAX_TX = 500
 
+
+
 def hash256(input: bytearray) -> bytearray:
     return sha256(sha256(input))
 
 class Block:
-    def __init__(self):
+    def __init__(self, int_block_ver=1, null_int=0):
         # Header
+
         # All data types in little-endian
-        self.block_version = 1 #4 bytes
-        self.previous_hash = 0 #32 bytes
-        self.merkle_root = 0 #32 bytes
+        self.block_version = int_block_ver.to_bytes(4, 'little') #4 bytes
+        self.previous_hash =  null_int.to_bytes(32, 'little') #32 bytes
+        self.merkle_root = null_int.to_bytes(32, 'little') #32 bytes
+
+        # Integers for now
         self.time = 0 #4 bytes
         self.bits = 0 #4 bytes
-        self.nonce = 0 #4 bytes
+        n = 0
+        self.nonce = n.to_bytes(4, 'little') #4 bytes
 
         # Transactions
         self.vtx = []
@@ -34,12 +40,12 @@ class Block:
     
     def get_hash(self) -> bytearray:
         output = bytearray()
-        output.append(self.block_version)
-        output.append(self.previous_hash)
+        output.extend(self.block_version)
+        output.extend(self.previous_hash)
         output.extend(self.merkle_root)
         output.append(self.time)
         output.append(self.bits)
-        output.append(self.nonce)
+        output.extend(self.nonce)
         return hash256(output)
 
     def build_merke_tree(self) -> str:
@@ -121,7 +127,7 @@ class Block:
     def __str__(self) -> str:
         string = "Block: {}".format(self.get_hash().hex())
         string += "\nVersion: {}\nPrevious Hash: {}\nNonce: {}\nTransactions: \n".format(
-            self.block_version, self.previous_hash, self.nonce
+            self.block_version.hex(), self.previous_hash.hex(), self.nonce.hex()
         )
         for i in range(len(self.vtx)):
             string += self.vtx[i].__str__()

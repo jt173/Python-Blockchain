@@ -11,10 +11,12 @@ MAX_SIZE = 0xffffffff
 class OutPoint:
     def __init__(self, hash_in: bytes = 0, n_in: int = -1):
         self.hash = bytes(hash_in)
-        self.n =n_in.to_bytes(4, 'little', signed=True)
+        self.n = n_in.to_bytes(4, 'little', signed=True)
     
     def is_null(self) -> bool:
-        return (self.hash == 0 and self.n == -1)
+        default_hash = 0
+        default_n = -1
+        return (self.hash == bytes(default_hash) and self.n == default_n.to_bytes(4, 'little', signed=True))
     
     def __str__(self) -> str: 
         return "\nTransaction: {} \nOutput: {}\n".format(self.hash.hex(), self.n.hex())
@@ -62,7 +64,7 @@ class TxOut:
         # Hash: value + size of script pk + script pk
         return self.value + len(self.script_pubkey) + self.script_pubkey
     
-    def is_mine(self, public_key: bytes, signature:bytes) -> bool:
+    def is_mine(self, public_key: bytes, signature: bytes) -> bool:
         return compile_script(public_key, signature, self.script_pubkey)
     
     def get_credit(self, public_key: bytes, signature:bytes) -> int:
@@ -135,7 +137,7 @@ class Transaction:
             value_out += txout.value
         return value_out
     
-    # FIxing this 
+
     def get_hash(self) -> bytearray:
         # Return the TXID of this transaction
         output = bytearray()
@@ -177,9 +179,6 @@ class Transaction:
         hash = self.get_hash()
         print(f'Transaction: {hash.hex()} accepted.')
         return True
-
-    def add_to_memory_pool(self) -> bool:
-        pass
 
     def __str__(self) -> str:
         string = "Transaction: {}\nInputs:\n".format(self.get_hash().hex())

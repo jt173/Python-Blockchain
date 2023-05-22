@@ -20,7 +20,24 @@ ADDCHAIN = "ADCH"
 # Maximum amount of transactions in one block
 MAX_TX = 500
 
+NULL_INT = 0
 
+
+def wtx_from_tx(tx: Transaction) -> WalletTx:
+    wtx = WalletTx()
+    wtx.tx_version = tx.tx_version
+    wtx.vin = tx.vin
+    wtx.vout = tx.vout
+
+    return wtx
+
+def tx_from_wtx(wtx: WalletTx) -> Transaction:
+    tx = Transaction()
+    tx.tx_version = wtx.tx_version
+    tx.vin = wtx.vin
+    tx.vout = wtx.vout
+
+    return tx
 
 class Node:
     def __init__(self, host, port):
@@ -64,34 +81,15 @@ class Node:
             self.connections.append(connection)
 
             # Start a new thread to handle the client connection
-            client_thread = threading.Thread(target=self.handle_conn, args=(connection,))
+            client_thread = threading.Thread(target=self.handle_connection, args=(connection,))
             client_thread.start()
 
     def handle_connection(self, connection):
         while True:
             try:
-                # Receive they type of the object being sent
-                type_data = connection.recv(4)
-                obj_type = type_data.decode()
-
-                data = connection.recv(4096)
-                if data:
-                    # Deserialize the received object
-                    received_object = pickle.loads(data)
-                    print(f'Received {obj_type}: {received_object}')
-                else:
-                    self.connections.remove(connection)
-                    print("Client disconnected")
-                    break
-            except Exception as e:
-                print(f'Error: {str(e)}')
-                break
-
-    def handle_conn(self, connection):
-        while True:
-            try:
                 # Receive the type of the object being sent
                 data_type = connection.recv(4)
+                data_type = data_type.decode()
 
                 if data_type == ADDTX:
                     self.recv_transaction(connection)
@@ -99,24 +97,6 @@ class Node:
                     self.recv_block(connection)
             except Exception as e:
                 print(f'Error: {str(e)}')
-    
-    def send_object(self, peer_address: tuple, obj, obj_type):
-        try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.connect(peer_address)
-
-            # Send type
-            type_data = obj_type.encode()
-            s.sendall(type_data)
-
-            # Serialize and send the object
-            data = pickle.dumps(obj)
-            s.sendall(data)
-            print(f'Sent {obj_type} to {peer_address[0]}:{peer_address[1]}')
-        except Exception as e:
-            print(f'An error has occured when sending the object: {str(e)}')
-        finally:
-            s.close()
 
 
 # ---- Send / Receive Object Functions ----
@@ -129,7 +109,7 @@ class Node:
             s.connect(peer_address)
 
             # Send message type
-            message_type = ADDTX
+            message_type = ADDTX.encode()
             s.sendall(message_type)
 
             # Serialize and send the transaction
@@ -137,7 +117,7 @@ class Node:
             s.sendall(buffer)
 
             if self.debug:
-                print(f'Sent transaction {tx.get_hash()} to {peer_address[0]}:{peer_address[1]}')
+                print(f'Sent transaction {tx.get_hash().hex()} to {peer_address[0]}:{peer_address[1]}')
         
         except Exception as e:
             print(f'Error while sending transaction: {str(e)}')
@@ -155,7 +135,7 @@ class Node:
 
                     # Add new transaction to our memory pool
                     self.add_to_memory_pool(tx)
-                    print(f'Transaction: {tx.get_hash()} added to memory pool')
+                    print(f'Transaction: {tx.get_hash().hex()} added to memory pool')
                 else:
                     self.connections.remove(connection)
                     print('Client disconnected')
@@ -171,7 +151,7 @@ class Node:
             s.connect(peer_address)
 
             # Send message type
-            message_type = ADDBLOCK
+            message_type = ADDBLOCK.encode()
             s.sendall(message_type)
 
             # Serialize and send the block
@@ -179,7 +159,7 @@ class Node:
             s.sendall(buffer)
 
             if self.debug:
-                print(f'Sent block {block.get_hash()} to {peer_address[0]}:{peer_address[1]}')
+                print(f'Sent block {block.get_hash().hex()} to {peer_address[0]}:{peer_address[1]}')
         
         except Exception as e:
             print(f'Error while sending block: {str(e)}')
@@ -197,10 +177,8 @@ class Node:
 
                     # Try to add to the blockchain stored on this node
                     if not self.blockchain.add_block(block):
-                        print(f'recv_block(): Add block {block.get_hash()} to blockchain failed')
+                        print(f'recv_block(): Add block {block.get_hash().hex()} to blockchain failed')
                         break
-                    
-                    print(f'Block: {block.get_hash()} added to blockchain')
 
                     # Check if any transactions are paying to me
                     # Also check if we have any of these transactions in our memory pool
@@ -312,6 +290,10 @@ class Node:
         address.extend(checksum)
         encoded_addr = base58.b58encode_check(address)
         print(encoded_addr)
+
+    def show_wallet(self) -> None:
+        for value in self.__wallet.values():
+            print(value)
     
 
 # ---- Wallet Functions ----
@@ -324,10 +306,10 @@ class Node:
         return True
     
     def add_to_wallet_if_mine(self, tx: Transaction) -> bool:
-        if tx.is_mine(self.__public_key, self.__private_key):
-            wtx = WalletTx(tx)
+        if tx.is_mine(self.__public_key, self.__signature):
+            wtx = wtx_from_tx(tx)
             return self.add_to_wallet(wtx)
-        
+
         return True
     
     def select_coins(self, target_value: int, set_coins_ret: list) -> bool:
@@ -384,12 +366,13 @@ class Node:
         # Make sure we don't already have it
         hash = tx.get_hash()
         if self.transactions.get(hash):
-            print(f'add_tx(): {hash} already exists in the memory pool')
+            print(f'add_tx(): {hash.hex()} already exists in the memory pool')
             return
         
         self.add_to_memory_pool(tx)
 
         # Send Transaction
+        self.send_transaction(tx)
 
     def commit_transaction(self, new_tx: WalletTx) -> None:
         # Add tx to wallet
@@ -487,7 +470,7 @@ class Node:
     def add_block(self, new_block: Block) -> None:
         # Try to add the block to our own blockchain first
         if not self.blockchain.add_block(new_block):
-            print("Peer::add_block(): add_block() failed")
+            print('add_block(): add_block() failed')
             return
         
         # All checks have passed, check if any transactions are paying to me
@@ -495,6 +478,7 @@ class Node:
             self.add_to_wallet_if_mine(tx)
         
         # Send block
+        self.send_block(new_block)
 
 
 # ---- Miner ----
@@ -511,10 +495,9 @@ class Node:
         coinbase_tx = WalletTx()
 
         coinbase_tx.vin.append(TxIn())
-        coinbase_tx.vin[0].prevout.set_null()
         coinbase_tx.vin[0].script_sig = bytes('0000', encoding='utf-8')
 
-        coinbase_tx.vout.append(TxOut)
+        coinbase_tx.vout.append(TxOut())
         coinbase_tx.vout[0].value = 50
         coinbase_tx.vout[0].script_pubkey = generate_script(hash160(self.__public_key))
 
@@ -522,32 +505,16 @@ class Node:
         new_block = Block()
 
         # Add coinbase transaction as the first transaction
-        new_block.vtx.append(Transaction(coinbase_tx))
+        new_block.vtx.append(tx_from_wtx(coinbase_tx))
 
         # Collect the current transactions and put them in the block
-        dict_block_txes = dict()
-        already_added = [len(self.transactions)]
-        found_tx = True
-        block_size = 0
+        for tx in self.transactions.values():
+            new_block.vtx.append(tx)
         
-        while found_tx and block_size < MAX_TX:
-            found_tx = False
-            n = 0
-            for tx in self.transactions.values():
-                if already_added[n]:
-                    continue
-                if tx.is_coinbase() or not tx.is_final():
-                    continue
-
-                new_block.vtx.append(tx)
-                block_size += 1
-                already_added[n] = True
-                found_tx = True
-        
-        print("Running miner with {} transactions in block".format(len(new_block.vtx)))
+        print(f'Running miner with {len(new_block.vtx)} transactions in block')
 
         # Construct block
-        new_block.previous_hash = self.blockchain.get_last_block_hash() if len(self.blockchain.chain) else 0
+        new_block.previous_hash = self.blockchain.get_last_block_hash() if len(self.blockchain.chain) else NULL_INT.to_bytes(32, 'little')
         new_block.merkle_root = new_block.build_merke_tree()
         new_block.index = len(self.blockchain.chain) + 1
 
@@ -556,35 +523,18 @@ class Node:
             hash = new_block.get_hash()
             if hash[0] == 0x00:
                 break
-            new_block.nonce += 1
+    
+            nonce = int.from_bytes(new_block.nonce, 'little')
+            nonce += 1
+            new_block.nonce = nonce.to_bytes(4, 'little')
         
-        print("Block: {} successfully mined\nAttempting to add block to the blockchain".format(new_block.get_hash()))
+        print(f'Block: {new_block.get_hash().hex()} successfully mined\nAttempting to add block to the blockchain')
 
         self.add_block(new_block)
 
         # Clear memory pool
         self.transactions.clear()
         return True
-
-
-if __name__ == '__main__':
-    network = Node('localhost', 8000)
     
-    listen_thread = threading.Thread(target=network.start)
-    listen_thread.start()
-
-    # Send objects to peers in parallel
-    peer_address1 = ('localhost', 8001)
-    # Tx to send
-    tx_new = Transaction()
-    tx_new.vin.append(TxIn())
-    tx_new.vin[0].script_sig = bytes('Genesis', encoding='utf-8')
-    tx_new.vout.append(TxOut())
-    tx_new.vout[0].value = 50
-    tx_new.vout[0].script_pubkey = bytes('Genesis', encoding='utf-8')
-
-    ADDTX = "ADDT"
-    network.send_object(peer_address1, tx_new, ADDTX)
-
         
     

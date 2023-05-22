@@ -37,11 +37,14 @@ def OP_HASH160(stack: list) -> None:
     stack.append(stack_hash)
 
 # Check that the hash160 on the stack is equal to the hash160 in the script.
-def OP_EQUALVERIFY(stack: list, pk_hash: bytearray) -> None:
+def OP_EQUALVERIFY(stack: list, pk_hash: bytearray) -> bool:
     stack_hash = stack[-1]
 
     if stack_hash == pk_hash:
         stack.pop()
+        return True
+    else:
+        return False
 
 # Check that the signature is valid
 def OP_CHECKSIG(stack: list) -> None:
@@ -49,7 +52,7 @@ def OP_CHECKSIG(stack: list) -> None:
     sig = stack.pop()
     
     # Initialize new PublicKey() from the pubkey on the stack
-    public_key = PublicKey(pubkey, raw=True)
+    public_key = PublicKey(bytes(pubkey), raw=True)
     # Deserialize the signature on the stack
     raw_sig = public_key.ecdsa_deserialize_compact(sig)
 
@@ -91,7 +94,7 @@ def compile_script(public_key: bytearray, signature: bytearray, script_pk: bytea
     # Size check
     # Must be at least 25 bytes long
     if len(script_pk) < 25:
-        print("size erroe")
+        print("size error")
         return False
     
     # intialize stack
@@ -104,7 +107,9 @@ def compile_script(public_key: bytearray, signature: bytearray, script_pk: bytea
 
     OP_DUP(stack)
     OP_HASH160(stack)
-    OP_EQUALVERIFY(stack, hash)
+    if not OP_EQUALVERIFY(stack, hash):
+        return False
+    
     OP_CHECKSIG(stack)
 
     if (len(stack) == 1 and stack[-1] == 1):

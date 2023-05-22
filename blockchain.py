@@ -22,13 +22,7 @@ class Blockchain:
         # Genesis Block
         block = Block()
         block.vtx.append(tx_new)
-        block.previous_hash = 0
         block.merkle_root = block.build_merke_tree()
-        block.block_version = 1
-
-        block.time = 0
-        block.bits = 0
-        block.nonce = 0
 
         self.chain.append(block)
 
@@ -51,7 +45,7 @@ class Blockchain:
         hash = cblock.get_hash()
         for i in range(len(self.chain)):
             if self.chain[i].get_hash() == hash:
-                print("add_block: {} already exists in the blockchain".format(hash))
+                print(f"add_block: {hash.hex()} already exists in the blockchain")
                 return False
         
         # Check previous block hash
@@ -66,7 +60,7 @@ class Blockchain:
         
         # Checks have passed
         self.chain.append(cblock)
-        print("Block: {} added to the blockchain".format(hash))
+        print(f"Block: {hash.hex()} added to the blockchain")
         return True
 
     def get_last_block_hash(self) -> bytearray:
