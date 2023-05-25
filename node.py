@@ -2,6 +2,7 @@ import socket
 import pickle
 import threading
 import sys
+import tkinter as tk
 
 import base58
 
@@ -22,7 +23,7 @@ MAX_TX = 500
 
 NULL_INT = 0
 
-
+# Helper functions
 def wtx_from_tx(tx: Transaction) -> WalletTx:
     wtx = WalletTx()
     wtx.tx_version = tx.tx_version
@@ -72,12 +73,12 @@ class Node:
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.bind((self.host, self.port))
         self.socket.listen(1)
-        print(f'Listening on {self.host}:{self.port}...')
+        self.log_message(f'Listening on {self.host}:{self.port}...')
 
         # Main loop
         while True:
             connection, address = self.socket.accept()
-            print(f'Received connection from {address[0]}:{address[1]}')
+            self.log_message(f'Received connection from {address[0]}:{address[1]}')
             self.connections.append(connection)
 
             # Start a new thread to handle the client connection
@@ -96,7 +97,18 @@ class Node:
                 elif data_type == ADDBLOCK:
                     self.recv_block(connection)
             except Exception as e:
-                print(f'Error: {str(e)}')
+                self.log_message(f'Error: {str(e)}')
+
+    def start_network(self):
+        listen_thread = threading.Thread(target=self.start)
+        listen_thread.start()
+
+    def log_message(self, message):
+        print(message)
+        message = message.strip()
+        if message:
+            self.gui.text_log.insert(tk.END, message + '\n')
+            self.gui.text_log.see(tk.END)
 
 
 # ---- Send / Receive Object Functions ----
@@ -117,10 +129,10 @@ class Node:
             s.sendall(buffer)
 
             if self.debug:
-                print(f'Sent transaction {tx.get_hash().hex()} to {peer_address[0]}:{peer_address[1]}')
+                self.log_message(f'Sent transaction {tx.get_hash().hex()} to {peer_address[0]}:{peer_address[1]}')
         
         except Exception as e:
-            print(f'Error while sending transaction: {str(e)}')
+            self.log_message(f'Error while sending transaction: {str(e)}')
         finally:
             s.close()
 
@@ -135,13 +147,13 @@ class Node:
 
                     # Add new transaction to our memory pool
                     self.add_to_memory_pool(tx)
-                    print(f'Transaction: {tx.get_hash().hex()} added to memory pool')
+                    self.log_message(f'Transaction: {tx.get_hash().hex()} added to memory pool')
                 else:
                     self.connections.remove(connection)
-                    print('Client disconnected')
+                    self.log_message('Client disconnected')
                     break
             except Exception as e:
-                print(f'Error while receiving transaction: {str(e)}')
+                self.log_message(f'Error while receiving transaction: {str(e)}')
 
     # --- Send / Receive Blocks ----
     
@@ -159,10 +171,10 @@ class Node:
             s.sendall(buffer)
 
             if self.debug:
-                print(f'Sent block {block.get_hash().hex()} to {peer_address[0]}:{peer_address[1]}')
+                self.log_message(f'Sent block {block.get_hash().hex()} to {peer_address[0]}:{peer_address[1]}')
         
         except Exception as e:
-            print(f'Error while sending block: {str(e)}')
+            self.log_message(f'Error while sending block: {str(e)}')
         finally:
             s.close()
 
@@ -177,7 +189,7 @@ class Node:
 
                     # Try to add to the blockchain stored on this node
                     if not self.blockchain.add_block(block):
-                        print(f'recv_block(): Add block {block.get_hash().hex()} to blockchain failed')
+                        self.log_message(f'recv_block(): Add block {block.get_hash().hex()} to blockchain failed')
                         break
 
                     # Check if any transactions are paying to me
@@ -189,10 +201,10 @@ class Node:
                             del self.transactions[tx.get_hash()]
                 else:
                     self.connections.remove(connection)
-                    print('Client disconnected')
+                    self.log_message('Client disconnected')
                     break
             except Exception as e:
-                print(f'Error while receiving block: {str(e)}')
+                self.log_message(f'Error while receiving block: {str(e)}')
 
     # ---- Send / Receive Blockchain
     
@@ -207,10 +219,10 @@ class Node:
             s.sendall(buffer)
 
             if self.debug:
-                print(f'Sent blockchain to {peer_address[0]}:{peer_address[1]}')
+                self.log_message(f'Sent blockchain to {peer_address[0]}:{peer_address[1]}')
         
         except Exception as e:
-            print(f'Error while sending blockchain: {str(e)}')
+            self.log_message(f'Error while sending blockchain: {str(e)}')
         finally:
             s.close()
 
@@ -225,13 +237,13 @@ class Node:
 
                     # update blockchain
                     self.blockchain = new_chain
-                    print("Blockchain updated")
+                    self.log_message("Blockchain updated")
                 else:
                     self.connections.remove(connection)
-                    print('Client disconnected')
+                    self.log_message('Client disconnected')
                     break
             except Exception as e:
-                print(f'Error while receiving blockchain: {str(e)}')
+                self.log_message(f'Error while receiving blockchain: {str(e)}')
 
 
 # ---- Retrieval Functions and Key Setter ----
@@ -249,11 +261,11 @@ class Node:
     
     def get_transactions(self):
         for value in self.transactions.values():
-            print(value)
+            self.log_message(value)
 
     def get_blocks(self):
         for i in range(len(self.blockchain.chain)):
-            print(self.blockchain.chain[i])
+            self.log_message(self.blockchain.chain[i])
         
     def get_balance(self) -> int:
         total = 0
@@ -290,10 +302,11 @@ class Node:
         address.extend(checksum)
         encoded_addr = base58.b58encode_check(address)
         print(encoded_addr)
+        return encoded_addr
 
     def show_wallet(self) -> None:
         for value in self.__wallet.values():
-            print(value)
+            self.log_message(value)
     
 
 # ---- Wallet Functions ----
@@ -366,7 +379,7 @@ class Node:
         # Make sure we don't already have it
         hash = tx.get_hash()
         if self.transactions.get(hash):
-            print(f'add_tx(): {hash.hex()} already exists in the memory pool')
+            self.log_message(f'add_tx(): {hash.hex()} already exists in the memory pool')
             return
         
         self.add_to_memory_pool(tx)
@@ -404,7 +417,7 @@ class Node:
 
             set_coins = []
             if not self.select_coins(amount, set_coins):
-                print("Select coins failed")
+                self.log_message("Select coins failed")
                 return False
 
             amount_in = 0
@@ -443,22 +456,22 @@ class Node:
 
         # Create and verify the transaction
         if amount < 0:
-            print("Send money(): amount vannot be negative")
+            self.log_message("Send money(): amount vannot be negative")
         
         if amount > self.get_balance():
-            print("Send_money(): Amount exceeds your balance")
+            self.log_message("Send_money(): Amount exceeds your balance")
             return
         
         if not self.create_transaction(address, amount, wtx):
-            print("Send_money(): Failed to create transaction")
+            self.log_message("Send_money(): Failed to create transaction")
             return
         
         if not self.commit_transaction(wtx):
-            print("Send_money(): Error finalizing transaction")
+            self.log_message("Send_money(): Error finalizing transaction")
             return
         
         if not wtx.accept_transaction():
-            print("Send money(): Accept_transaction() failed")
+            self.log_message("Send money(): Accept_transaction() failed")
             return
         
         # All checks have passed, send the transaction
@@ -470,7 +483,7 @@ class Node:
     def add_block(self, new_block: Block) -> None:
         # Try to add the block to our own blockchain first
         if not self.blockchain.add_block(new_block):
-            print('add_block(): add_block() failed')
+            self.log_message('add_block(): add_block() failed')
             return
         
         # All checks have passed, check if any transactions are paying to me
@@ -484,11 +497,11 @@ class Node:
 # ---- Miner ----
 
     def miner(self):
-        print("Miner started")
+        self.log_message("Miner started")
 
         # Make sure we have some transactions
         if len(self.transactions) == 0:
-            print("No transactions")
+            self.log_message("No transactions")
             return False
         
         # Create coinbase transaction
@@ -511,7 +524,7 @@ class Node:
         for tx in self.transactions.values():
             new_block.vtx.append(tx)
         
-        print(f'Running miner with {len(new_block.vtx)} transactions in block')
+        self.log_message(f'Running miner with {len(new_block.vtx)} transactions in block')
 
         # Construct block
         new_block.previous_hash = self.blockchain.get_last_block_hash() if len(self.blockchain.chain) else NULL_INT.to_bytes(32, 'little')
@@ -528,7 +541,7 @@ class Node:
             nonce += 1
             new_block.nonce = nonce.to_bytes(4, 'little')
         
-        print(f'Block: {new_block.get_hash().hex()} successfully mined\nAttempting to add block to the blockchain')
+        self.log_message(f'Block: {new_block.get_hash().hex()} successfully mined\nAttempting to add block to the blockchain')
 
         self.add_block(new_block)
 
@@ -536,5 +549,4 @@ class Node:
         self.transactions.clear()
         return True
     
-        
-    
+
