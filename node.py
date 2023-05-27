@@ -52,6 +52,7 @@ class Node:
         self.__private_key = bytearray()
         self.__public_key = bytearray()
         self.__signature = bytearray()
+        self.__address = None
 
         # Transactions stored in this Node (memory pool)
         self.transactions = {} # TXID --> Transaction mapping
@@ -249,6 +250,8 @@ class Node:
 # ---- Retrieval Functions and Key Setter ----
 
     def set_keys(self, pubkey: bytearray, privkey: bytearray, sig: bytearray) -> bool:
+        # This function sets the keys and generates the user's address from the set
+        # public key
         self.__public_key = pubkey
         self.__private_key = privkey
         self.__signature = sig
@@ -257,6 +260,28 @@ class Node:
         if (len(self.__public_key) == 0 or len(self.__private_key) == 0 or len(self.__signature) == 0):
             return False
         
+        # Generate the address
+        hashed_public_key = hash160(self.__public_key)
+
+        address = bytearray()
+        prefix = 0x00
+        address.append(prefix)
+        address.extend(hashed_public_key)
+
+        # Need to create a copy before attempting to create the checksum
+        data = address.copy()
+
+        # Checksum = first four bytes of sha256(sha256(hashed public key))
+        hash256 = sha256(sha256(data))
+        checksum = hash256[0:4]
+
+        address.extend(checksum)
+        encoded_addr = base58.b58encode_check(address)
+        self.__address = encoded_addr
+        
+
+
+
         return True
     
     def get_transactions(self):
@@ -279,30 +304,8 @@ class Node:
     def get_public_key(self) -> bytearray:
         return self.__public_key
     
-    def get_address(self) -> None:
-        # Temporary function
-        #
-        # Generates the address, could have this a different function somewhere else
-        # and store the address in the Node object, and this function just return the address
-        # Only call after keys have been set
-        hashed_public_key = hash160(self.__public_key)
-
-        address = bytearray()
-        prefix = 0x00
-        address.append(prefix)
-        address.extend(hashed_public_key)
-
-        # Need to create a copy before attempting to create the checksum
-        data = address.copy()
-
-        # Checksum = first four bytes of sha256(sha256(hashed public key))
-        hash256 = sha256(sha256(data))
-        checksum = hash256[0:4]
-
-        address.extend(checksum)
-        encoded_addr = base58.b58encode_check(address)
-        print(encoded_addr)
-        return encoded_addr
+    def get_address(self) -> bytes:
+        return self.__address
 
     def show_wallet(self) -> None:
         for value in self.__wallet.values():
@@ -425,8 +428,12 @@ class Node:
                 amount_in += pcoin.get_credit(self.__public_key, self.__signature)
 
             # Fill vout[0] to the payee
-            # First, base58 decode the address
-            b58_decode = base58.b58decode_check(address)
+            # First, base58 decode the address and check for validity
+            try:
+                b58_decode = base58.b58decode_check(address)
+            except ValueError as ve:
+                self.log_message(f'ValueError: address {address} is not valid.')
+                return False 
 
             # Extract the hashed public key from the decoded base58 bytes
             hashed_pk = b58_decode[1:21]
@@ -532,6 +539,7 @@ class Node:
         new_block.index = len(self.blockchain.chain) + 1
 
         # Mine for the hash
+        self.log_message('Mining...')
         while True:
             hash = new_block.get_hash()
             if hash[0] == 0x00:
@@ -549,4 +557,26 @@ class Node:
         self.transactions.clear()
         return True
     
+
+# ---- File I/O ----
+    def load_blockchain(self) -> None:
+        with open('blockchain.pickle') as f:
+            loaded_chain = pickle.load(f)
+            self.blockchain = loaded_chain
+
+    def save_blockchain(self) -> None:
+        with open('blockchain.pickle', 'wb') as f:
+            pickle.dump(self.blockchain, f)
+
+    def load_wallet(self) -> None:
+        with open('wallet.pickle') as f:
+            loaded_wallet = pickle.load(f)
+            self.__wallet = loaded_wallet
+
+    def save_wallet(self) -> None:
+        with open('wallet.pickle', 'wb') as f:
+            pickle.dump(self.__wallet, f)
+            
+
+
 
