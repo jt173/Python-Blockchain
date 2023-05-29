@@ -279,9 +279,6 @@ class Node:
         encoded_addr = base58.b58encode_check(address)
         self.__address = encoded_addr
         
-
-
-
         return True
     
     def get_transactions(self):
@@ -310,6 +307,9 @@ class Node:
     def show_wallet(self) -> None:
         for value in self.__wallet.values():
             self.log_message(value)
+
+
+
     
 
 # ---- Wallet Functions ----
@@ -319,6 +319,13 @@ class Node:
 
         # Insert
         self.__wallet[hash] = wtx_in
+
+        # Add to recent transactions
+        if wtx_in.is_mine(self.__public_key, self.__signature):
+            self.gui.recent_tx_tree.insert('', tk.END, values=('Received', str(hash.hex()), wtx_in.get_value_out()))
+        else:
+            self.gui.recent_tx_tree.insert('', tk.END, values=('Sent', str(hash.hex()), wtx_in.get_value_out()))
+        
         return True
     
     def add_to_wallet_if_mine(self, tx: Transaction) -> bool:
