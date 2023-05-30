@@ -116,6 +116,22 @@ class GUI:
         self.tx_frame = tk.Frame(self.notebook, height=400, width=400)
         self.tx_frame.pack(fill='both', expand=True)
 
+        self.transaction_cols = ('txid', 'amount')
+
+        self.transaction_tree = ttk.Treeview(self.tx_frame, columns=self.transaction_cols, show='headings')
+        self.transaction_tree.column('txid', width=500)
+        self.transaction_tree.column('amount', width=60)
+
+        self.transaction_tree.heading('txid', text='Transaction ID')
+        self.transaction_tree.heading('amount', text='Amount')
+
+        self.transaction_scrollbar = ttk.Scrollbar(self.tx_frame, orient=tk.VERTICAL, 
+                                                   command=self.transaction_tree.yview)
+        self.transaction_tree.configure(yscroll=self.transaction_scrollbar.set)
+        self.transaction_scrollbar.pack(side='right', fill='y')
+        self.transaction_tree.pack(expand=True, fill='both')
+        self.transaction_tree.bind("<Double-1>", self.on_double_click)
+
         self.notebook.add(self.tx_frame, text='Transactions')
 
 
@@ -142,6 +158,22 @@ class GUI:
         
         self.node.log_message(f'Attempting to send {amount} coins to {address}')
         self.node.send_money(address, int(amount))
+
+    def on_double_click(self, event):
+        item = self.transaction_tree.selection()[0]
+        hash = self.transaction_tree.item(item, 'values')[0]
+        print(self.transaction_tree.item(item, 'values')[0])
+        print('you clicked on', self.transaction_tree.item(item, 'values'))
+        transaction_window = tk.Toplevel()
+        transaction_window.title(str(self.transaction_tree.item(item, 'values')[0]))
+        transaction_window.config(width=300, height=200)
+        
+        tx_str = self.node.transactions[bytearray.fromhex(hash)].__str__()
+
+        transaction_data = tk.Text(tx_str)
+        transaction_data.pack()
+        
+        transaction_data.insert(tk.END, 'str')
 
     def miner_button_clicked(self):
         self.node.miner()

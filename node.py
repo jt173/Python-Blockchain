@@ -384,6 +384,10 @@ class Node:
     def add_to_memory_pool(self, tx: Transaction):
         hash = tx.get_hash()
         self.transactions[hash] = tx
+
+        # Update transaction viewer
+        self.gui.transaction_tree.insert('', tk.END, values = (str(hash.hex()), tx.get_value_out()))
+        
     
     def add_tx(self, tx: Transaction) -> None:
         # Make sure we don't already have it
