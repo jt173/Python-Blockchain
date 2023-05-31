@@ -130,7 +130,7 @@ class GUI:
         self.transaction_tree.configure(yscroll=self.transaction_scrollbar.set)
         self.transaction_scrollbar.pack(side='right', fill='y')
         self.transaction_tree.pack(expand=True, fill='both')
-        self.transaction_tree.bind("<Double-1>", self.on_double_click)
+        self.transaction_tree.bind("<Double-1>", self.on_double_click_tx)
 
         self.notebook.add(self.tx_frame, text='Transactions')
 
@@ -140,6 +140,22 @@ class GUI:
         self.block_frame = tk.Frame(self.notebook, height=400, width=400)
         self.block_frame.pack(fill='both', expand=True)
 
+        self.block_cols = ('hash', 'index')
+
+        self.block_tree = ttk.Treeview(self.block_frame, columns=self.block_cols, show='headings')
+        self.block_tree.column('hash', width=500)
+        self.block_tree.column('index', width=50)
+
+        self.block_tree.heading('hash', text='Block Hash')
+        self.block_tree.heading('index', text='Block Index')
+
+        self.block_scrollbar = ttk.Scrollbar(self.block_frame, orient=tk.VERTICAL,
+                                             command=self.block_tree.yview)
+        self.block_tree.configure(yscroll=self.block_scrollbar.set)
+        self.block_scrollbar.pack(side='right', fill='y')
+        self.block_tree.pack(expand=True, fill='both')
+        self.block_tree.bind("<Double-1>", self.on_double_click_block)
+        
         self.notebook.add(self.block_frame, text='Blocks')
 
 
@@ -159,7 +175,7 @@ class GUI:
         self.node.log_message(f'Attempting to send {amount} coins to {address}')
         self.node.send_money(address, int(amount))
 
-    def on_double_click(self, event):
+    def on_double_click_tx(self, event):
         item = self.transaction_tree.selection()[0]
         hash = self.transaction_tree.item(item, 'values')[0]
         print(self.transaction_tree.item(item, 'values')[0])
@@ -168,12 +184,16 @@ class GUI:
         transaction_window.title(str(self.transaction_tree.item(item, 'values')[0]))
         transaction_window.config(width=300, height=200)
         
-        tx_str = self.node.transactions[bytearray.fromhex(hash)].__str__()
+        tx_str = self.node.transactions[bytes.fromhex(hash)].__str__()
 
-        transaction_data = tk.Text(tx_str)
+        transaction_data = tk.Text(transaction_window)
         transaction_data.pack()
         
-        transaction_data.insert(tk.END, 'str')
+        transaction_data.insert(tk.END, tx_str)
+
+    def on_double_click_block(self, event):
+        pass
+
 
     def miner_button_clicked(self):
         self.node.miner()

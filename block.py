@@ -47,7 +47,7 @@ class Block:
         output.append(self.bits)
         output.extend(self.nonce)
         return hash256(output)
-
+    # bug here
     def build_merke_tree(self) -> str:
         self.merkle_tree.clear()
 
