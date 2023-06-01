@@ -50,6 +50,7 @@ class Node:
         self.port = port
         self.socket = None
         self.connections = []
+        self.clients = {}
 
         # User information
         self.__wallet = {} # Transactions in this Node's wallet: TXID --> WalletTx mapping
@@ -82,12 +83,17 @@ class Node:
 
         # Main loop
         while True:
-            connection, address = self.socket.accept()
-            self.log_message(f'Received connection from {address[0]}:{address[1]}')
-            self.connections.append(connection)
+            client_socket, client_address = self.socket.accept()
+            self.log_message(f'Received connection from {client_address[0]}:{client_address[1]}')
+            self.connections.append(client_socket)
+
+            # Check if its the first time the peer connects
+            if client_address not in self.clients:
+                self.send_blockchain()
+                self.clients[client_address] = True
 
             # Start a new thread to handle the client connection
-            client_thread = threading.Thread(target=self.handle_connection, args=(connection,))
+            client_thread = threading.Thread(target=self.handle_connection, args=(client_socket,))
             client_thread.start()
 
     def handle_connection(self, connection):
@@ -101,6 +107,8 @@ class Node:
                     self.recv_transaction(connection)
                 elif data_type == ADDBLOCK:
                     self.recv_block(connection)
+                elif data_type == ADDCHAIN:
+                    self.recv_blockchain(connection)
             except Exception as e:
                 self.log_message(f'Error: {str(e)}')
 
@@ -218,6 +226,10 @@ class Node:
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.connect(peer_address)
+
+            # Send message type
+            message_type = ADDCHAIN.encode()
+            s.sendall(message_type)
 
             # Serialize and send the blockchain
             buffer = pickle.dumps(self.blockchain)
