@@ -1,5 +1,8 @@
+import tkinter as tk
+
 from block import Block
 from transaction import Transaction, TxOut, TxIn
+
 
 class Blockchain:
     def __init__(self):
@@ -21,11 +24,12 @@ class Blockchain:
 
         # Genesis Block
         block = Block()
+        block.index = 0
         block.vtx.append(tx_new)
         block.merkle_root = block.build_merke_tree()
 
         self.chain.append(block)
-
+        
     # Search for block by index or hash
     def get_block(self, position: int) -> Block:
         if position <= len(self.chain):
@@ -35,7 +39,7 @@ class Blockchain:
 
     def get_block(self, block_hash: str) -> Block:
         for i in range(len(self.chain)):
-            if (self.chain[i].get_hash() == block_hash):
+            if (self.chain[i].get_hash() == bytes.fromhex(block_hash)):
                 return self.chain[i]
         raise ValueError("get_block(): Hash not found")
 

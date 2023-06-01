@@ -3,14 +3,6 @@ from tkinter import ttk
 from tkinter import messagebox
 from node import Node
 
-# TODO:
-# Remove Recent Transactions
-
-# Add the ability to look at blocks
-# Add the ability to look at transactions
-
-
-
 
 class GUI:
     def __init__(self, node: Node):
@@ -155,6 +147,10 @@ class GUI:
         self.block_scrollbar.pack(side='right', fill='y')
         self.block_tree.pack(expand=True, fill='both')
         self.block_tree.bind("<Double-1>", self.on_double_click_block)
+
+        # Insert
+        for block in self.node.blockchain.chain:
+            self.block_tree.insert('', tk.END, values=(str(block.get_hash().hex()), str(block.get_index())))
         
         self.notebook.add(self.block_frame, text='Blocks')
 
@@ -178,10 +174,9 @@ class GUI:
     def on_double_click_tx(self, event):
         item = self.transaction_tree.selection()[0]
         hash = self.transaction_tree.item(item, 'values')[0]
-        print(self.transaction_tree.item(item, 'values')[0])
-        print('you clicked on', self.transaction_tree.item(item, 'values'))
+
         transaction_window = tk.Toplevel()
-        transaction_window.title(str(self.transaction_tree.item(item, 'values')[0]))
+        transaction_window.title(str(hash))
         transaction_window.config(width=300, height=200)
         
         tx_str = self.node.transactions[bytes.fromhex(hash)].__str__()
@@ -192,8 +187,19 @@ class GUI:
         transaction_data.insert(tk.END, tx_str)
 
     def on_double_click_block(self, event):
-        pass
+        item = self.block_tree.selection()[0]
+        hash = self.block_tree.item(item, 'values')[0]
 
+        block_window = tk.Toplevel()
+        block_window.title(str(hash))
+        block_window.config(width=300, height=200)
+
+        block_str = self.node.blockchain.get_block(hash).__str__()
+
+        block_data = tk.Text(block_window)
+        block_data.pack()
+
+        block_data.insert(tk.END, block_str)
 
     def miner_button_clicked(self):
         self.node.miner()

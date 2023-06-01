@@ -13,6 +13,10 @@ from block import Block
 from blockchain import Blockchain
 
 
+# TODO:
+# implement a refresh gui function instead of updaing everything manually
+
+
 # Message Types
 ADDTX = "ADTX"
 ADDBLOCK = "ADBL"
@@ -504,6 +508,9 @@ class Node:
             self.log_message('add_block(): add_block() failed')
             return
         
+        # Update gui
+        self.gui.block_tree.insert('', tk.END, values=(str(new_block.get_hash().hex()), str(new_block.get_index())))
+
         # All checks have passed, check if any transactions are paying to me
         for tx in new_block.vtx:
             self.add_to_wallet_if_mine(tx)
