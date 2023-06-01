@@ -56,16 +56,21 @@ class Block:
             self.merkle_tree.append(tx.get_hash())
 
         j = 0
-        for x in range(len(self.vtx)):
-            while x > 1:
-                for i in range(0, i < x, 2):
-                    i2 = min(i + 1, x - 1)
+        for size in range(len(self.vtx)):
+            while size > 1:
+                i = 0
+                while i < size:
+                    i2 = min(i + 1, size - 1)
                     self.merkle_tree.append(hash256(self.merkle_tree[j + i] + self.merkle_tree[j + i2]))
-            j += x
-            x = (x + 1) / 2
+                    i += 2
+            j += size
+            size = (size + 1) / 2
         
         return self.merkle_tree[-1]
     
+    """
+    Functions for interacting with merkle transactions
+
     def get_merkle_branch(self, index: int) -> list:
         if (not self.merkle_tree):
             self.build_merke_tree()
@@ -75,9 +80,9 @@ class Block:
         for size in range(len(self.vtx)):
             while size > 1:
                 i = min(index ^ 1, size - 1)
-                merkle_branch.append(self.merkle_tree[j + 1])
+                merkle_branch.append(self.merkle_tree[j + i])
                 index >>= 1
-            j += size
+                j += size
             size = (size + 1) / 2
         
         return merkle_branch
@@ -94,7 +99,7 @@ class Block:
             index >>= 1
         
         return hash
-
+    """
     # basic checks for block validity
     def check_block(self) -> bool:
         # size limits
