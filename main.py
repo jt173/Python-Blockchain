@@ -27,6 +27,12 @@ def main():
 
     # Test transaction
 
+    # Load 
+    if os.path.isfile('wallet.dat'):
+        node.load_wallet()
+    if os.path.isfile('blockchain.dat'):
+        node.load_blockchain()
+
     wtx = WalletTx()
     wtx.vout.append(TxOut(500, generate_script(hash160(node.get_public_key()))))
     wtx.vin.append(TxIn())

@@ -1,7 +1,12 @@
 import tkinter as tk
+import os.path
 from tkinter import ttk
 from tkinter import messagebox
+
 from node import Node
+
+# TODO:
+# Add a button to retrieve the newest blockchain
 
 
 class GUI:
@@ -34,15 +39,15 @@ class GUI:
         self.wallet_balance = tk.Label(self.wallet_frame, text=str(node.get_balance()) + ' Coins')
         self.wallet_balance.pack()
 
-        self.w_refresh_button = tk.Button(self.wallet_frame, text='Refresh', command=self.refresh_button_clicked)
-        self.w_refresh_button.pack()
-
         self.my_address = tk.Label(self.wallet_frame, text='My Address')
         self.my_address.pack()
 
         self.address_text = tk.Label(self.wallet_frame, text='')
         self.address_text['text'] = self.node.get_address()
         self.address_text.pack()
+
+        self.quit_button = tk.Button(self.wallet_frame, text='Shutdown', command=self.quit_button_clicked)
+        self.quit_button.pack(side='bottom')
 
         # Recent Transactions
         self.recent_tx_frame = tk.LabelFrame(self.overview_frame, text='Recent Transactions')
@@ -155,10 +160,29 @@ class GUI:
         self.notebook.add(self.block_frame, text='Blocks')
 
 
+    def quit_button_clicked(self):
+        if os.path.isfile('wallet.dat'):
+            self.node.save_wallet()
+        if os.path.isfile('blockchain.dat'):
+            self.node.load_wallet()
 
+        self.root.destroy()
 
-    def refresh_button_clicked(self):
+    def refresh_wallet(self, text, hash, value):
+        if text == 'recv':
+            self.recent_tx_tree.insert('', tk.END, values=('Received', str(hash.hex()), value))
+        elif text == 'sent':
+            self.recent_tx_tree.insert('', tk.END, values=('Sent', str(hash.hex()), value))
+
+    def refresh_balance(self):
         self.wallet_balance['text'] = str(self.node.get_balance()) + ' Coins'
+
+    def refresh_txes(self, hash, value):
+        self.transaction_tree.insert('', tk.END, values=(str(hash.hex()), value))
+
+    def refresh_blocks(self, hash, index):
+        self.block_tree.insert('', tk.END, values=(str(hash.hex()), index))
+
 
     def send_button_clicked(self):
         address = self.entry_address.get()

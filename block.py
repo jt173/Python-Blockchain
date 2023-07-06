@@ -3,6 +3,8 @@ from sha256 import sha256
 
 MAX_TX = 500
 
+# TODO:
+# Add merkle transactions
 
 
 def hash256(input: bytearray) -> bytearray:

@@ -65,11 +65,6 @@ class Node:
         # Blockchain stored in this Node
         self.blockchain = Blockchain()
 
-        # Threading locks
-        self.wallet_lock = threading.Lock()
-        self.tx_lock = threading.Lock()
-        self.chian_lock = threading.Lock()
-
         self.debug = True
 
 
@@ -87,14 +82,14 @@ class Node:
             self.log_message(f'Received connection from {client_address[0]}:{client_address[1]}')
             self.connections.append(client_socket)
 
-            # Check if its the first time the peer connects
-            if client_address not in self.clients:
-                self.send_blockchain()
-                self.clients[client_address] = True
-
             # Start a new thread to handle the client connection
             client_thread = threading.Thread(target=self.handle_connection, args=(client_socket,))
             client_thread.start()
+
+            # Check if its the first time the peer connects
+            #if client_address not in self.clients:
+            #    self.send_blockchain()
+            #    self.clients[client_address] = True
 
     def handle_connection(self, connection):
         while True:
@@ -336,11 +331,13 @@ class Node:
         # Insert
         self.__wallet[hash] = wtx_in
 
-        # Add to recent transactions
+        # Notify GUI 
         if wtx_in.is_mine(self.__public_key, self.__signature):
-            self.gui.recent_tx_tree.insert('', tk.END, values=('Received', str(hash.hex()), wtx_in.get_value_out()))
+            self.gui.refresh_wallet('recv', hash, wtx_in.get_value_out())
         else:
-            self.gui.recent_tx_tree.insert('', tk.END, values=('Sent', str(hash.hex()), wtx_in.get_value_out()))
+            self.gui.refresh_wallet('send', hash, wtx_in.get_value_out())
+
+        self.gui.refresh_balance()   
         
         return True
     
@@ -401,8 +398,8 @@ class Node:
         hash = tx.get_hash()
         self.transactions[hash] = tx
 
-        # Update transaction viewer
-        self.gui.transaction_tree.insert('', tk.END, values = (str(hash.hex()), tx.get_value_out()))
+        # Notify UI
+        self.gui.refresh_txes(hash, tx.get_value_out())
         
     
     def add_tx(self, tx: Transaction) -> None:
@@ -511,6 +508,8 @@ class Node:
         # All checks have passed, send the transaction
         self.add_tx(wtx)
 
+        self.gui.refresh_balance()
+
     
 # ---- Block Functions ----
 
@@ -521,8 +520,8 @@ class Node:
             return
         
         # Update gui
-        self.gui.block_tree.insert('', tk.END, values=(str(new_block.get_hash().hex()), str(new_block.get_index())))
-
+        self.gui.refresh_blocks(new_block.get_hash(), new_block.get_index())
+        
         # All checks have passed, check if any transactions are paying to me
         for tx in new_block.vtx:
             self.add_to_wallet_if_mine(tx)
@@ -575,6 +574,7 @@ class Node:
             if hash[0] == 0x00:
                 break
     
+            # Bug
             nonce = int.from_bytes(new_block.nonce, 'little')
             nonce += 1
             new_block.nonce = nonce.to_bytes(4, 'little')
@@ -590,21 +590,21 @@ class Node:
 
 # ---- File I/O ----
     def load_blockchain(self) -> None:
-        with open('blockchain.pickle') as f:
+        with open('blockchain.dat') as f:
             loaded_chain = pickle.load(f)
             self.blockchain = loaded_chain
 
     def save_blockchain(self) -> None:
-        with open('blockchain.pickle', 'wb') as f:
+        with open('blockchain.dat', 'wb') as f:
             pickle.dump(self.blockchain, f)
 
     def load_wallet(self) -> None:
-        with open('wallet.pickle') as f:
+        with open('wallet.dat') as f:
             loaded_wallet = pickle.load(f)
             self.__wallet = loaded_wallet
 
     def save_wallet(self) -> None:
-        with open('wallet.pickle', 'wb') as f:
+        with open('wallet.dat', 'wb') as f:
             pickle.dump(self.__wallet, f)
             
 
