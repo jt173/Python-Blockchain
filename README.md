@@ -8,5 +8,5 @@ The Node class defaults to sending data to 'local_host:8001'. To change this, up
 the peer_address in the node.py file.
 
 ## Requirements
-pip install secp256k1
+pip install secp256k1\
 pip install base58
